@@ -29,6 +29,7 @@ const TAP_PROMISE = () => {
 
 const COMPILE = function(options) {
 	factory.setup(this, options);
+	console.log('函数', factory.create(options).toString())
 	return factory.create(options);
 };
 

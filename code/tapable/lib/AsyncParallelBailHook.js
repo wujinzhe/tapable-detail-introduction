@@ -75,6 +75,9 @@ function AsyncParallelBailHook(args = [], name = undefined) {
 	const hook = new Hook(args, name);
 	hook.constructor = AsyncParallelBailHook;
 	hook.compile = COMPILE;
+
+	// 这个和同步钩子不同的是，无法使用call方法来触发函数
+	// TODO: 为什么不和同步钩子对tapPromise的处理那样，抛一个异常出来
 	hook._call = undefined;
 	hook.call = undefined;
 	return hook;

@@ -6,11 +6,17 @@
 
 const util = require("util");
 
+/** 后续介绍 */
 const deprecateContext = util.deprecate(() => {},
 "Hook.context is deprecated and will be removed");
 
 /**
  * this._createCall是需要调用this.compile（子类的编译方法）
+ * _createCall会返回编译之后的方法，
+ * 相当于每次触发回调都是执行的是compile生成之后的方法
+ * 
+ * CALL_DELEGATE调用方法的委托，因为这个触发的方法是需要编译过后产生的，
+ * 就不用每次执行都执行一次生成函数的流程，而是每次都是用生成好的函数
  * 
  */
 const CALL_DELEGATE = function(...args) {
@@ -28,16 +34,27 @@ const PROMISE_DELEGATE = function(...args) {
 
 class Hook {
 	constructor(args = [], name = undefined) {
+		/**
+		 * this.call  this.callAsync  this.promise 是给实例调用的，调用来触发注册的函数
+		 */
 		this._args = args;
 		this.name = name;
-		this.taps = [];
+		this.taps = []; // 注册了的回调函数数组
 		this.interceptors = []; // 拦截器数组
+
+		/** 用作重新编译使用，后面会详细介绍 */
 		this._call = CALL_DELEGATE;
-		this.call = CALL_DELEGATE;
 		this._callAsync = CALL_ASYNC_DELEGATE;
-		this.callAsync = CALL_ASYNC_DELEGATE;
 		this._promise = PROMISE_DELEGATE;
+
+		// 用于触发注册的函数
+		this.call = CALL_DELEGATE;
+		this.callAsync = CALL_ASYNC_DELEGATE;
 		this.promise = PROMISE_DELEGATE;
+
+		/**
+		 * 用于动态函数内容的拼接，_x只是注册的函数数组
+		 */
 		this._x = undefined;
 
 		this.compile = this.compile;
@@ -51,7 +68,7 @@ class Hook {
 		throw new Error("Abstract: should be overridden");
 	}
 
-	/** 调用子类的compile方法 */
+	/** 触发注册函数调用的方法 调用子类的compile方法 */
 	_createCall(type) {
 		return this.compile({
 			taps: this.taps,
@@ -61,6 +78,7 @@ class Hook {
 		});
 	}
 
+	/** 真正的进行注册回调的方法 */
 	_tap(type, options, fn) {
 		if (typeof options === "string") {
 			options = {
@@ -72,6 +90,7 @@ class Hook {
 		if (typeof options.name !== "string" || options.name === "") {
 			throw new Error("Missing name for tap");
 		}
+		// context 已经被弃用，将要被删除
 		if (typeof options.context !== "undefined") {
 			deprecateContext();
 		}
@@ -97,7 +116,7 @@ class Hook {
 		this._tap("promise", options, fn);
 	}
 
-	/** 注册拦截器 */
+	/** 注册拦截器，在options里面添加拦截器 */
 	_runRegisterInterceptors(options) {
 		for (const interceptor of this.interceptors) {
 			if (interceptor.register) {
@@ -110,6 +129,7 @@ class Hook {
 		return options;
 	}
 
+	/** 只有在multiHook钩子中使用到，可以稍微往后放 */
 	withOptions(options) {
 		const mergeOptions = opt =>
 			Object.assign({}, options, typeof opt === "string" ? { name: opt } : opt);
@@ -133,6 +153,10 @@ class Hook {
 	intercept(interceptor) {
 		this._resetCompilation();
 		this.interceptors.push(Object.assign({}, interceptor));
+
+		/**
+		 * 拦截器的register钩子能够改变tap的函数，所以如果如果有这个选项的话，则需要改变每一个tap注册的函数
+		 */
 		if (interceptor.register) {
 			for (let i = 0; i < this.taps.length; i++) {
 				this.taps[i] = interceptor.register(this.taps[i]);
