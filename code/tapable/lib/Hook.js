@@ -6,7 +6,7 @@
 
 const util = require("util");
 
-/** 后续介绍 */
+/** context参数将要被废弃 */
 const deprecateContext = util.deprecate(() => {},
 "Hook.context is deprecated and will be removed");
 
@@ -68,7 +68,10 @@ class Hook {
 		throw new Error("Abstract: should be overridden");
 	}
 
-	/** 触发注册函数调用的方法 调用子类的compile方法 */
+	/** 触发注册函数调用的方法 调用子类的compile方法 
+	 * this.compile返回的是使用new Function创建的函数
+	 * 性能优化，后续作为课题进行讲解
+	*/
 	_createCall(type) {
 		return this.compile({
 			taps: this.taps,
@@ -96,7 +99,14 @@ class Hook {
 		}
 		// 将参数都整合到options中
 		options = Object.assign({ type, fn }, options);
+		/**
+		 * 如果拦截器中有register方法，则需要改变options，生成新的options
+		 */
 		options = this._runRegisterInterceptors(options);
+
+		/**
+		 * 使用拦截器修改后的注册方法插入到taps数组中
+		 */
 		this._insert(options);
 	}
 
@@ -116,10 +126,24 @@ class Hook {
 		this._tap("promise", options, fn);
 	}
 
-	/** 注册拦截器，在options里面添加拦截器 */
+	/** 如果拦截器中有register方法，则需要更新每一个tap的options */
 	_runRegisterInterceptors(options) {
+		/**
+		 * 循环拦截器数组
+		 * register(tap) {
+				console.log('register', tap);
+				return tap;
+		 * },
+
+			 如果有register函数，则需要改变options，因为register是可以改变
+			 原有的注册函数的一些参数
+		 * 
+		 */
 		for (const interceptor of this.interceptors) {
 			if (interceptor.register) {
+				/**
+				 * 如果有返回内容，则改变之前的options(tap)，否则保持不变
+				 */
 				const newOptions = interceptor.register(options);
 				if (newOptions !== undefined) {
 					options = newOptions;
@@ -145,11 +169,12 @@ class Hook {
 		};
 	}
 
+	/** 只有在multiHook钩子中使用到，可以稍微往后放, 是否是有用的钩子 */
 	isUsed() {
 		return this.taps.length > 0 || this.interceptors.length > 0;
 	}
 
-	/** 拦截 */
+	/** 只有在multiHook钩子中使用到，可以稍微往后放 拦截 */
 	intercept(interceptor) {
 		this._resetCompilation();
 		this.interceptors.push(Object.assign({}, interceptor));
