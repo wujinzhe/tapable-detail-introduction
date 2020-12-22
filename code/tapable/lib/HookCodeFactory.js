@@ -11,19 +11,17 @@ class HookCodeFactory {
 		this._args = undefined;
 	}
 
+	/**
+	 * 生成函数
+	 * @param {Object} options 
+	 */
 	create(options) {
 		this.init(options);
 		let fn;
+		console.log('this', this.header());
 		switch (this.options.type) {
+			/** 同步函数 */
 			case "sync":
-				// console.log('this.header()', this.header())
-				// console.log('嘻嘻嘻', this.contentWithInterceptors({
-				// 	onError: err => `throw ${err};\n`,
-				// 	onResult: result => `return ${result};\n`,
-				// 	resultReturns: true,
-				// 	onDone: () => "",
-				// 	rethrowIfPossible: true
-				// }))
 				fn = new Function(
 					this.args(),
 					'"use strict";\n' +
@@ -37,6 +35,8 @@ class HookCodeFactory {
 						})
 				);
 				break;
+
+			// 异步函数
 			case "async":
 				fn = new Function(
 					this.args({
@@ -51,6 +51,7 @@ class HookCodeFactory {
 						})
 				);
 				break;
+			// promise
 			case "promise":
 				let errorHelperUsed = false;
 				const content = this.contentWithInterceptors({
@@ -156,6 +157,9 @@ class HookCodeFactory {
 		}
 	}
 
+	/**
+	 * header方法为生成 调用拦截器call方法的代码
+	 */
 	header() {
 		let code = "";
 		if (this.needContext()) {
@@ -170,6 +174,9 @@ class HookCodeFactory {
 		}
 		for (let i = 0; i < this.options.interceptors.length; i++) {
 			const interceptor = this.options.interceptors[i];
+			/**
+			 * 如果拦截器中有call方法，则使用参数来执行拦截器中的call方法
+			 */
 			if (interceptor.call) {
 				code += `${this.getInterceptor(i)}.call(${this.args({
 					before: interceptor.context ? "_context" : undefined

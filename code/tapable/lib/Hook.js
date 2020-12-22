@@ -57,6 +57,9 @@ class Hook {
 		 */
 		this._x = undefined;
 
+		/**
+		 * TODO:  这里赋值的作用暂时还不知道
+		 */
 		this.compile = this.compile;
 		this.tap = this.tap;
 		this.tapAsync = this.tapAsync;
@@ -174,9 +177,14 @@ class Hook {
 		return this.taps.length > 0 || this.interceptors.length > 0;
 	}
 
-	/** 只有在multiHook钩子中使用到，可以稍微往后放 拦截 */
+	/**
+	 * 钩子的实例调用该方法，给钩子的拦截器数组中添加拦截器
+	 * 拦截器中的register函数会更改 tap
+	 */
 	intercept(interceptor) {
 		this._resetCompilation();
+
+		// push 浅拷贝的拦截器
 		this.interceptors.push(Object.assign({}, interceptor));
 
 		/**
@@ -240,3 +248,17 @@ class Hook {
 Object.setPrototypeOf(Hook.prototype, null);
 
 module.exports = Hook;
+
+
+/**
+ * 我们来看下几个函数分别的作用
+ * _insert
+ * intercept
+ * _runRegisterInterceptors
+ * 
+ * _tap() 
+ * 		_insert()
+ * 		_runRegisterInterceptors()
+ * 
+ * 实例.intercept()
+ */

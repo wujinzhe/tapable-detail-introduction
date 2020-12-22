@@ -32,6 +32,10 @@ const TAP_PROMISE = () => {
 // 专题2 使用new Function()生成函数来执行
 /** 调用代码生成工厂，生成钩子调用call时候调用的函数，也就是compile返回的函数 */
 const COMPILE = function(options) {
+	/**
+	 * 获取注册的函数数组
+	 * TODO: 为什么需要一个方法单独来写，直接获取tap.map不是更简单吗
+	 */
 	factory.setup(this, options);
 	// console.log('1', factory.create(options).toString())
 	return factory.create(options);
