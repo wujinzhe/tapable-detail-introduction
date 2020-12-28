@@ -8,6 +8,10 @@ const Hook = require("./Hook");
 const HookCodeFactory = require("./HookCodeFactory");
 
 class AsyncParallelBailHookCodeFactory extends HookCodeFactory {
+	/**
+	 * 整个注册方法的执行顺序的控制 是在content这个方法中完成的
+	 * HookCodeFactory里面所拼接执行的代码，都是为了拦截器做的功能
+	 */
 	content({ onError, onResult, onDone }) {
 		let code = "";
 		code += `var _results = new Array(${this.options.taps.length});\n`;

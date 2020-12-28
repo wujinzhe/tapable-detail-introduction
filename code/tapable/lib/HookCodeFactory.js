@@ -14,13 +14,28 @@ class HookCodeFactory {
 	/**
 	 * 生成函数
 	 * @param {Object} options 
+	 * 赋值了这些参数
+	 * onError: err => `throw ${err};\n`,
+			onResult: result => `return ${result};\n`,
+			resultReturns: true,
+			onDone: () => "",
+			rethrowIfPossible: true
 	 */
 	create(options) {
 		this.init(options);
 		let fn;
-		console.log('this', this.header());
+		console.log('this \n', this.header() + this.contentWithInterceptors({
+			onError: err => `throw ${err};\n`,
+			onResult: result => `return ${result};\n`,
+			resultReturns: true,
+			onDone: () => "",
+			rethrowIfPossible: true // 只有sync类型的rethrowIfPossible 字段为true
+		}));
+		
+		/** 这个表示触发函数的方法类型 */
 		switch (this.options.type) {
-			/** 同步函数 */
+			/** 同步函数  */
+			
 			case "sync":
 				fn = new Function(
 					this.args(),
@@ -31,7 +46,7 @@ class HookCodeFactory {
 							onResult: result => `return ${result};\n`,
 							resultReturns: true,
 							onDone: () => "",
-							rethrowIfPossible: true
+							rethrowIfPossible: true // 只有sync类型的rethrowIfPossible 字段为true
 						})
 				);
 				break;
@@ -104,11 +119,33 @@ class HookCodeFactory {
 		this._args = undefined;
 	}
 
+	/**
+	 * 
+	 * @param {Object} options 
+	 * onError
+	 * onResult
+	 * onDone
+	 * 为三个钩子添加拦截器的代码
+	 */
 	contentWithInterceptors(options) {
+		/** 如果有拦截器，则需要执行先拼接“执行拦截器中的代码” */
 		if (this.options.interceptors.length > 0) {
 			const onError = options.onError;
 			const onResult = options.onResult;
 			const onDone = options.onDone;
+
+			/**
+			 * aync 的onError
+			 * err => throw err
+			 */
+
+			/**
+			 * content 这个方法 都是继承HookCodeFactory基类的子类来实现的
+			 * 所有的钩子都是在继承的类实现了这个content方法
+			 * 这个方法拼接的代码也是 先执行了拦截器对应的方法，然后再执行每个钩子独有的方法
+			 * 
+			 * sync的content 是调用了callTapsSeries（连续调用）方法
+			 */
 			return this.content(
 				Object.assign(options, {
 					onError:
@@ -117,6 +154,7 @@ class HookCodeFactory {
 							let code = "";
 							for (let i = 0; i < this.options.interceptors.length; i++) {
 								const interceptor = this.options.interceptors[i];
+								// 执行拦截器的error钩子
 								if (interceptor.error) {
 									code += `${this.getInterceptor(i)}.error(${err});\n`;
 								}
@@ -191,6 +229,16 @@ class HookCodeFactory {
 		return false;
 	}
 
+	/**
+	 * tapIndex 注册事件的索引
+	 * 拼接执行单个tap注册事件的方法
+	 * 
+	 * rethrowIfPossible 如果可能重新抛出
+	 * onError
+	 * onResult
+	 * onDone
+	 * rethrowIfPossible
+	 */
 	callTap(tapIndex, { onError, onResult, onDone, rethrowIfPossible }) {
 		let code = "";
 		let hasTapCached = false;
@@ -198,7 +246,10 @@ class HookCodeFactory {
 			const interceptor = this.options.interceptors[i];
 			if (interceptor.tap) {
 				if (!hasTapCached) {
+					// var _tap0 = tap  tap对象
 					code += `var _tap${tapIndex} = ${this.getTap(tapIndex)};\n`;
+					// 用于判断第index是否已经声明过了，如果声明过了，则跳转拼接“tap的声明代码”
+					// 因为loop的钩子可能会循环触发某一个tap
 					hasTapCached = true;
 				}
 				code += `${this.getInterceptor(i)}.tap(${
@@ -206,15 +257,49 @@ class HookCodeFactory {
 				}_tap${tapIndex});\n`;
 			}
 		}
+		/**
+		 var _fn0 = xxxx
+		//  fn0 是注册的函数
+		 */
 		code += `var _fn${tapIndex} = ${this.getTapFn(tapIndex)};\n`;
 		const tap = this.options.taps[tapIndex];
+		/**
+		 * 这里的类型不是tap注册函数的类型
+		 * 而是触发事件时的类型
+		 * 触发事件有三种情况 sync, async, promise
+		 */
 		switch (tap.type) {
+			/**
+			 * 
+			 * 当类型为sync时，我们来分析一下 各个参数
+			 * onError: err => `throw ${err};\n`,
+				 onResult: result => `return ${result};\n`,
+				 resultReturns: true,
+				 onDone: () => "",
+				 rethrowIfPossible: rethrowIfPossible && (firstAsync < 0 || i < firstAsync) 只有sync类型的有这个参数
+
+			 */
 			case "sync":
+				/**
+				 * rethrowIfPossible 这个参数其实真正的作用就是在拼接代码的时候 添加try，catch
+				 * 使我们的代码可以捕获到错误，并且在onError钩子中可以获取到错误
+				 */
 				if (!rethrowIfPossible) {
+					/**
+					 var _hasError0 = false;
+					 try {
+					 */
 					code += `var _hasError${tapIndex} = false;\n`;
 					code += "try {\n";
 				}
+				// 如果有onResult钩子，则onResult钩子会返回执行 注册函数的返回值
+				/**
+				 * 有无onResult的区别就是_result会保存执行注册函数的返回值
+				 */
 				if (onResult) {
+					/**
+					var _result0 = _fn0
+					 */
 					code += `var _result${tapIndex} = _fn${tapIndex}(${this.args({
 						before: tap.context ? "_context" : undefined
 					})});\n`;
@@ -223,6 +308,8 @@ class HookCodeFactory {
 						before: tap.context ? "_context" : undefined
 					})});\n`;
 				}
+				// 如果有onError钩子，并且满足rethrowIfPossible：false的条件
+				// 则onError的参数为 catch抛出的异常
 				if (!rethrowIfPossible) {
 					code += "} catch(_err) {\n";
 					code += `_hasError${tapIndex} = true;\n`;
@@ -230,9 +317,12 @@ class HookCodeFactory {
 					code += "}\n";
 					code += `if(!_hasError${tapIndex}) {\n`;
 				}
+				// 如果有onResult钩子，则onResult的参数为注册函数的返回值
 				if (onResult) {
 					code += onResult(`_result${tapIndex}`);
 				}
+
+				/** 如果有onDone钩子，则会在函数执行完成后执行onDone钩子 */
 				if (onDone) {
 					code += onDone();
 				}
@@ -284,6 +374,12 @@ class HookCodeFactory {
 		return code;
 	}
 
+	/**
+	 * 连续调用注册函数
+	 * onDone 执行完所有的钩子的回调事件
+	 * 
+	 * 调用了callTap方法
+	 */
 	callTapsSeries({
 		onError,
 		onResult,
