@@ -11,6 +11,11 @@ const HookCodeFactory = require("./HookCodeFactory");
  * 生成函数代码的类
  */
 class SyncHookCodeFactory extends HookCodeFactory {
+	/**
+	 * 
+	 * syncHook在content函数中返回的值没有onResult、
+	 * 说明SyncHook 不支持拦截器OnResult
+	 */
 	content({ onError, onDone, rethrowIfPossible }) {
 		return this.callTapsSeries({
 			onError: (i, err) => onError(err),

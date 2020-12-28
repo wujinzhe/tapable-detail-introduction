@@ -134,6 +134,7 @@ class HookCodeFactory {
 			const onResult = options.onResult;
 			const onDone = options.onDone;
 
+			// console.log('onResult', onResult)
 			/**
 			 * aync 的onError
 			 * err => throw err
@@ -296,6 +297,7 @@ class HookCodeFactory {
 				/**
 				 * 有无onResult的区别就是_result会保存执行注册函数的返回值
 				 */
+				console.log('onResult', onResult)
 				if (onResult) {
 					/**
 					var _result0 = _fn0
