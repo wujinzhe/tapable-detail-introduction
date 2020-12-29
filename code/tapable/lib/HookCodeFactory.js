@@ -381,6 +381,8 @@ class HookCodeFactory {
 	 * onDone 执行完所有的钩子的回调事件
 	 * 
 	 * 调用了callTap方法
+	 * 
+	 * syncHook 钩子 明年
 	 */
 	callTapsSeries({
 		onError,
@@ -390,7 +392,11 @@ class HookCodeFactory {
 		doneReturns,
 		rethrowIfPossible
 	}) {
+		/**
+		 * 如果没有注册函数，则直接执行onDone()
+		 */
 		if (this.options.taps.length === 0) return onDone();
+		// 第一个异步的注册函数（async 或者promise）
 		const firstAsync = this.options.taps.findIndex(t => t.type !== "sync");
 		const somethingReturns = resultReturns || doneReturns;
 		let code = "";
@@ -421,6 +427,10 @@ class HookCodeFactory {
 						return onResult(i, result, done, doneBreak);
 					}),
 				onDone: !onResult && done,
+				/**
+				 * rethrowIfPossible只有是false的时候，才满足在代码中拼接try/catch的条件
+				 * syncHook rethrowIfPossible: true  firstAsync: -1  < 0   true
+				 */
 				rethrowIfPossible:
 					rethrowIfPossible && (firstAsync < 0 || i < firstAsync)
 			});

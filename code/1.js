@@ -55,6 +55,7 @@ hook.tap({
   stage: 10,
 }, (a, b, c) => {
   console.log('second', a, b, c)
+  throw new Error('123')
   return 'second'
 })
 
