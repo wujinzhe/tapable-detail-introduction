@@ -21,16 +21,14 @@ class HookCodeFactory {
 			onDone: () => "",
 			rethrowIfPossible: true
 	 */
+
+	/**
+	 * 
+	 *  根据不同的类型生成不同的函数，就是使用call调用的「需要编译的函数」
+	 */
 	create(options) {
 		this.init(options);
 		let fn;
-		console.log('this \n', this.header() + this.contentWithInterceptors({
-			onError: err => `throw ${err};\n`,
-			onResult: result => `return ${result};\n`,
-			resultReturns: true,
-			onDone: () => "",
-			rethrowIfPossible: true // 只有sync类型的rethrowIfPossible 字段为true
-		}));
 		
 		/** 这个表示触发函数的方法类型 */
 		switch (this.options.type) {
@@ -102,11 +100,17 @@ class HookCodeFactory {
 		return fn;
 	}
 
+	/**
+	 * TODO: setup函数的意义在哪里
+	 * @param {*} instance 
+	 * @param {*} options 
+	 */
 	setup(instance, options) {
 		instance._x = options.taps.map(t => t.fn);
 	}
 
 	/**
+	 * 是给create函数调用的
 	 * @param {{ type: "sync" | "promise" | "async", taps: Array<Tap>, interceptors: Array<Interceptor> }} options
 	 */
 	init(options) {
@@ -114,6 +118,7 @@ class HookCodeFactory {
 		this._args = options.args.slice();
 	}
 
+	/** 释放 */
 	deinit() {
 		this.options = undefined;
 		this._args = undefined;
@@ -231,6 +236,11 @@ class HookCodeFactory {
 	}
 
 	/**
+	 * 
+	 * 还有一个继承子类实现的content函数
+	 */
+
+	/**
 	 * tapIndex 注册事件的索引
 	 * 拼接执行单个tap注册事件的方法
 	 * 
@@ -239,6 +249,8 @@ class HookCodeFactory {
 	 * onResult
 	 * onDone
 	 * rethrowIfPossible
+	 * 
+	 * SyncHookCodeFactory(SyncHook钩子)在content函数中没有传递onResult, 表示syncHook这个钩子没有onResult拦截器钩子
 	 */
 	callTap(tapIndex, { onError, onResult, onDone, rethrowIfPossible }) {
 		let code = "";
@@ -429,6 +441,7 @@ class HookCodeFactory {
 				onDone: !onResult && done,
 				/**
 				 * rethrowIfPossible只有是false的时候，才满足在代码中拼接try/catch的条件
+				 * rethrowIfPossible: rethrowIfPossible && (firstAsync < 0 || i < firstAsync)
 				 * syncHook rethrowIfPossible: true  firstAsync: -1  < 0   true
 				 */
 				rethrowIfPossible:
@@ -560,6 +573,10 @@ class HookCodeFactory {
 		return code;
 	}
 
+	/** 可以添加两个参数，before表示参数位置会放在所有参数前面，after表示放在后面，并返回所有参数的字符串，使用,分割
+	 * @param {String} before
+	 * @param {String} after
+	 */
 	args({ before, after } = {}) {
 		let allArgs = this._args;
 		if (before) allArgs = [before].concat(allArgs);
@@ -571,14 +588,17 @@ class HookCodeFactory {
 		}
 	}
 
+	/** 获取注册tap的回调函数 */
 	getTapFn(idx) {
 		return `_x[${idx}]`;
 	}
 
+	/** 获取注册的tap */
 	getTap(idx) {
 		return `_taps[${idx}]`;
 	}
 
+	/** 根据索引获取拦截器 */
 	getInterceptor(idx) {
 		return `_interceptors[${idx}]`;
 	}

@@ -102,3 +102,8 @@ var _fn2 = _x[2];
 _fn2(a, b, c);
 _interceptors[0].done();
    */
+
+
+   /**
+    * syncHook 只有onDone 拦截器钩子
+    */

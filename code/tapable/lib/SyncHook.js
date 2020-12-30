@@ -8,7 +8,7 @@ const Hook = require("./Hook");
 const HookCodeFactory = require("./HookCodeFactory");
 
 /**
- * 生成函数代码的类
+ * 生成函数代码的类，继承HookCodeFactory
  */
 class SyncHookCodeFactory extends HookCodeFactory {
 	/**
@@ -40,6 +40,7 @@ const COMPILE = function(options) {
 	/**
 	 * 获取注册的函数数组
 	 * TODO: 为什么需要一个方法单独来写，直接获取tap.map不是更简单吗
+	 * this._x = options.taps.map(t => t.fn);
 	 */
 	factory.setup(this, options);
 	// console.log('1', factory.create(options).toString())
